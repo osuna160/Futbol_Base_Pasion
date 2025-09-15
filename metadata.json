@@ -1,0 +1,6 @@
+{
+  "name": "Control Estadístico de Fútbol 15 06",
+  "description": "Una aplicación web para llevar el control estadístico en tiempo real de un partido de fútbol femenino, incluyendo marcador, cronómetro, tarjetas y sustituciones.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
