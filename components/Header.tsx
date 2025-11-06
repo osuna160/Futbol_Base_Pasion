@@ -1,11 +1,7 @@
 import React from 'react';
-import { MatchState, GoalEvent } from '../types';
-import type { Team, Player, StatEvent } from '../types';
-
-interface Goal {
-  playerName: string;
-  minute: number;
-}
+import { MatchState } from '../types';
+import type { Team, StatEvent } from '../types';
+import { SignalIcon } from './icons';
 
 interface HeaderProps {
   matchState: MatchState;
@@ -21,6 +17,8 @@ interface HeaderProps {
   onEndMatch: () => void;
   onBackToDashboard: () => void;
   showSaveIndicator: boolean;
+  isLiveModeActive: boolean;
+  onToggleLiveMode: () => void;
 }
 
 const StepperInput: React.FC<{
@@ -104,7 +102,9 @@ const Header: React.FC<HeaderProps> = ({
   onResetHalf,
   onEndMatch,
   onBackToDashboard,
-  showSaveIndicator
+  showSaveIndicator,
+  isLiveModeActive,
+  onToggleLiveMode
 }) => {
   const halfDurationSeconds = halfDurationMinutes * 60;
 
@@ -172,28 +172,13 @@ const Header: React.FC<HeaderProps> = ({
     return { text, className, disabled };
   };
 
-  const getGoalscorers = (team: Team): Goal[] => {
-    const allPlayers: Player[] = [...team.starters, ...team.subs];
-    const goals: Goal[] = [];
-
-    allPlayers.forEach((player) => {
-        player.goals.forEach((event: GoalEvent) => {
-            goals.push({ playerName: player.name, minute: event.minute });
-        });
-    });
-
-    return goals.sort((a, b) => a.minute - b.minute);
-  };
-
-  const teamAGoals = getGoalscorers(teamA);
-  const teamBGoals = getGoalscorers(teamB);
-
   const { text: buttonText, className: buttonClassName, disabled: buttonDisabled } = getButtonState();
 
   const currentMinute = Math.floor(totalSeconds / 60);
 
   const showResetHalfButton = [MatchState.FIRST_HALF, MatchState.SECOND_HALF].includes(matchState);
   const showEndMatchButton = [MatchState.FIRST_HALF, MatchState.HALF_TIME, MatchState.SECOND_HALF].includes(matchState);
+  const canShowLiveModeButton = [MatchState.FIRST_HALF, MatchState.SECOND_HALF].includes(matchState);
 
   return (
     <header className="bg-gray-800 rounded-lg p-4 mb-6 shadow-lg">
@@ -206,40 +191,26 @@ const Header: React.FC<HeaderProps> = ({
             )}
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-center flex-grow">Control del Partido</h1>
-        <div className="w-40 text-right"> {/* Right content */}
+        <div className="w-40 text-right flex items-center justify-end gap-2"> {/* Right content */}
+            {canShowLiveModeButton && (
+                <button
+                    onClick={onToggleLiveMode}
+                    className={`p-2 rounded-lg shadow-md transition-colors text-sm whitespace-nowrap ${
+                        isLiveModeActive
+                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                            : 'bg-[var(--primary-color)] hover:brightness-90 text-white'
+                    }`}
+                    title={isLiveModeActive ? "Salir de Modo Directo" : "Activar Modo Directo"}
+                >
+                    <SignalIcon />
+                </button>
+            )}
             <button onClick={onBackToDashboard} className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors text-sm whitespace-nowrap">
-                Volver al Inicio
+                Volver
             </button>
         </div>
       </div>
-      <div className="text-center text-xl font-semibold text-cyan-400 my-2">{getMatchPartText()}</div>
-      
-       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-4 my-4">
-        {/* Team A Info */}
-        <div className="flex flex-col items-end text-right">
-            <span className="text-xl sm:text-2xl font-bold truncate">{teamA.name}</span>
-            <div className="text-sm text-gray-300 mt-2 space-y-1">
-                {teamAGoals.map((goal, index) => (
-                    <div key={`teamA-goal-${index}`}>{goal.playerName} {goal.minute}'</div>
-                ))}
-            </div>
-        </div>
-
-        {/* Score */}
-        <div className="flex items-center justify-center">
-            <span className="text-3xl sm:text-4xl font-bold bg-black/30 px-4 py-2 rounded-md">{`${teamA.score} - ${teamB.score}`}</span>
-        </div>
-
-        {/* Team B Info */}
-        <div className="flex flex-col items-start text-left">
-            <span className="text-xl sm:text-2xl font-bold truncate">{teamB.name}</span>
-            <div className="text-sm text-gray-300 mt-2 space-y-1">
-                {teamBGoals.map((goal, index) => (
-                    <div key={`teamB-goal-${index}`}>{goal.playerName} {goal.minute}'</div>
-                ))}
-            </div>
-        </div>
-      </div>
+      <div className="text-center text-xl font-semibold text-[var(--secondary-color)] my-4">{getMatchPartText()}</div>
 
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 border-t border-gray-700/60 pt-4 mt-4">
         <div className="text-6xl font-mono bg-black/20 px-4 py-2 rounded-md">{getTimerDisplay()}</div>

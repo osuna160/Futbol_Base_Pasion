@@ -1,5 +1,3 @@
-
-
 import React, { useState, memo, useRef, useCallback } from 'react';
 import { MatchState, type Team, type TeamId, type PlayerStatKeys, type StatEvent } from '../types';
 import PlayerCard from './PlayerCard';
@@ -9,6 +7,7 @@ interface TeamPanelProps {
   team: Team;
   opponentTeam: Team;
   teamId: TeamId;
+  isMyTeam: boolean;
   matchState: MatchState;
   isRosterEditable: boolean;
   isMatchActionEnabled: boolean;
@@ -20,8 +19,75 @@ interface TeamPanelProps {
   onInitiateSub: (teamId: TeamId) => void;
   onUpdatePlayerStat: (teamId: TeamId, playerId: number, stat: PlayerStatKeys, action: 'add' | 'remove') => void;
   onAddGoal: (teamId: TeamId, playerId: number) => void;
-  onTeamStatChange: (teamId: TeamId, stat: 'cornersFor', action: 'add' | 'remove') => void;
+  onTeamStatChange: (teamId: TeamId, stat: 'cornersFor' | 'foulsCommitted', action: 'add' | 'remove') => void;
 }
+
+// Helper function to process, resize, and reconstruct an image file.
+const processImageFile = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+        const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|gif|webp)$/i.test(file.name);
+        if (!isImage) {
+            return reject(new Error('El archivo no es un tipo de imagen válido.'));
+        }
+        
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+
+        reader.onload = (event) => {
+            if (!event.target?.result) {
+                return reject(new Error('No se pudo leer el archivo para procesarlo.'));
+            }
+
+            const img = new Image();
+            img.src = event.target.result as string;
+
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_DIMENSION = 512;
+                let { width, height } = img;
+
+                if (width > height) {
+                    if (width > MAX_DIMENSION) {
+                        height = Math.round(height * (MAX_DIMENSION / width));
+                        width = MAX_DIMENSION;
+                    }
+                } else {
+                    if (height > MAX_DIMENSION) {
+                        width = Math.round(width * (MAX_DIMENSION / height));
+                        height = MAX_DIMENSION;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    return reject(new Error('No se pudo obtener el contexto del canvas.'));
+                }
+
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob(
+                    (blob) => {
+                        if (blob) {
+                            // Create a new File object with the correct MIME type
+                            const newFile = new File([blob], file.name, { type: 'image/jpeg' });
+                            resolve(newFile);
+                        } else {
+                            reject(new Error('Fallo al crear el blob desde el canvas.'));
+                        }
+                    },
+                    'image/jpeg',
+                    0.9
+                );
+            };
+            img.onerror = () => reject(new Error('No se pudo cargar la imagen para procesarla.'));
+        };
+        reader.onerror = () => reject(new Error('Falló la lectura del archivo.'));
+    });
+};
+
 
 const StatRow: React.FC<{ label: string; value: StatEvent[]; isInteractive?: boolean; onUpdate?: (action: 'add' | 'remove') => void; isMatchActionEnabled: boolean; }> = memo(({ label, value, isInteractive = false, onUpdate, isMatchActionEnabled }) => {
   const [minutesVisible, setMinutesVisible] = useState(false);
@@ -64,16 +130,11 @@ const StatRow: React.FC<{ label: string; value: StatEvent[]; isInteractive?: boo
   );
 });
 
-const TeamPanel: React.FC<TeamPanelProps> = ({ team, opponentTeam, teamId, matchState, isRosterEditable, isMatchActionEnabled, onUpdateTeamName, onUpdateTeamLogo, onUpdatePlayer, onGiveCard, onRemoveCard, onInitiateSub, onUpdatePlayerStat, onTeamStatChange, onAddGoal }) => {
+const TeamPanel: React.FC<TeamPanelProps> = ({ team, opponentTeam, teamId, isMyTeam, matchState, isRosterEditable, isMatchActionEnabled, onUpdateTeamName, onUpdateTeamLogo, onUpdatePlayer, onGiveCard, onRemoveCard, onInitiateSub, onUpdatePlayerStat, onTeamStatChange, onAddGoal }) => {
   const borderFocusClass = teamId === 'a' ? 'focus:border-blue-500' : 'focus:border-pink-500';
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const allPlayersThisTeam = [...team.starters, ...team.subs];
-  const allOpponentPlayers = [...opponentTeam.starters, ...opponentTeam.subs];
-
-  const teamFoulsCommitted = allPlayersThisTeam.flatMap(p => p.foulsCommitted);
-  const teamFoulsReceived = allOpponentPlayers.flatMap(p => p.foulsCommitted);
-  const teamOffsides = allPlayersThisTeam.flatMap(p => p.offsidesCommitted);
+  const teamOffsides = [...team.starters, ...team.subs].flatMap(p => p.offsidesCommitted);
 
   const handleLogoClick = () => {
     if (isRosterEditable) {
@@ -81,12 +142,24 @@ const TeamPanel: React.FC<TeamPanelProps> = ({ team, opponentTeam, teamId, match
     }
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-        onUpdateTeamLogo(teamId, file);
+    if (event.target) event.target.value = ''; // Reset input to allow re-uploading same file
+
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert('La imagen es demasiado grande. Por favor, elige una de menos de 5MB.');
+        return;
     }
-    event.target.value = '';
+
+    try {
+        const processedFile = await processImageFile(file);
+        onUpdateTeamLogo(teamId, processedFile);
+    } catch (error) {
+        console.error("Error processing logo:", error);
+        alert(`Error al procesar la imagen: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    }
   };
 
   return (
@@ -133,7 +206,7 @@ const TeamPanel: React.FC<TeamPanelProps> = ({ team, opponentTeam, teamId, match
       </div>
 
       <div className="border-t border-b border-gray-700/80 py-3">
-        <h4 className="font-semibold text-lg mb-2 text-cyan-400 text-center">Estadísticas del Equipo</h4>
+        <h4 className="font-semibold text-lg mb-2 text-center" style={{ color: isMyTeam ? 'var(--secondary-color)' : '#f472b6' }}>Estadísticas del Equipo</h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <StatRow 
               key={`${teamId}-cornersFor`}
@@ -144,23 +217,17 @@ const TeamPanel: React.FC<TeamPanelProps> = ({ team, opponentTeam, teamId, match
               isMatchActionEnabled={isMatchActionEnabled}
           />
           <StatRow 
-              key={`${teamId}-cornersAgainst`}
-              label="Corners en Contra"
-              value={opponentTeam.cornersFor}
-              isInteractive={false}
-              isMatchActionEnabled={isMatchActionEnabled}
-          />
-          <StatRow 
               key={`${teamId}-foulsCommitted`}
               label="Faltas Cometidas"
-              value={teamFoulsCommitted}
-              isInteractive={false}
+              value={team.foulsCommitted}
+              isInteractive={true}
+              onUpdate={(action) => onTeamStatChange(teamId, 'foulsCommitted', action)}
               isMatchActionEnabled={isMatchActionEnabled}
           />
            <StatRow 
               key={`${teamId}-foulsReceived`}
               label="Faltas Recibidas"
-              value={teamFoulsReceived}
+              value={opponentTeam.foulsCommitted}
               isInteractive={false}
               isMatchActionEnabled={isMatchActionEnabled}
           />
@@ -187,7 +254,7 @@ const TeamPanel: React.FC<TeamPanelProps> = ({ team, opponentTeam, teamId, match
         <button
             onClick={() => onInitiateSub(teamId)}
             disabled={!isMatchActionEnabled || (team.substitutionWindows <= 0 && matchState !== MatchState.HALF_TIME) || matchState === MatchState.FULL_TIME}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-2 bg-[var(--primary-color)] hover:brightness-90 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
         >
             <SubstituteIcon />
             Realizar Cambios
@@ -200,6 +267,7 @@ const TeamPanel: React.FC<TeamPanelProps> = ({ team, opponentTeam, teamId, match
                     key={player.id}
                     player={player}
                     teamId={teamId}
+                    isMyTeam={isMyTeam}
                     onUpdatePlayer={onUpdatePlayer}
                     onGiveCard={onGiveCard}
                     onRemoveCard={onRemoveCard}
@@ -217,6 +285,7 @@ const TeamPanel: React.FC<TeamPanelProps> = ({ team, opponentTeam, teamId, match
                     key={player.id}
                     player={player}
                     teamId={teamId}
+                    isMyTeam={isMyTeam}
                     onUpdatePlayer={onUpdatePlayer}
                     onGiveCard={onGiveCard}
                     onRemoveCard={onRemoveCard}

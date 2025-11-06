@@ -15,20 +15,20 @@ const PlayerToken: React.FC<PlayerTokenProps> = ({ player, teamId, onMove }) => 
     e.preventDefault();
     e.stopPropagation();
     isDragging.current = true;
-    
-    const getEventCoords = (e: MouseEvent | TouchEvent) => {
-        return 'touches' in e ? e.touches[0] : e;
-    };
 
     const handleDragMove = (moveEvent: MouseEvent | TouchEvent) => {
       if (!isDragging.current || !tokenRef.current) return;
-      
+
       moveEvent.preventDefault();
 
       const parentRect = tokenRef.current.parentElement?.getBoundingClientRect();
       if (!parentRect) return;
-      
-      const { clientX, clientY } = getEventCoords(moveEvent);
+
+      const touch = 'touches' in moveEvent ? moveEvent.touches[0] : null;
+      const clientX = touch ? touch.clientX : (moveEvent as MouseEvent).clientX;
+      const clientY = touch ? touch.clientY : (moveEvent as MouseEvent).clientY;
+
+      if (clientX === undefined || clientY === undefined) return;
 
       let x = clientX - parentRect.left;
       let y = clientY - parentRect.top;

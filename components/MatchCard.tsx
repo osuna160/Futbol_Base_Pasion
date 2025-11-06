@@ -33,6 +33,16 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onStartOrResume, onEdit, o
 
     const matchDate = details.matchTime ? new Date(details.matchTime) : null;
 
+    const matchTypeDisplay = (() => {
+        if (details.matchType === 'Liga' && details.jornada) {
+            return `${details.matchType} - J${details.jornada}`;
+        }
+        if (details.matchType === 'Torneo' && details.tournamentStage) {
+            return `${details.matchType} - ${details.tournamentStage}`;
+        }
+        return details.matchType;
+    })();
+
     return (
         <div className="match-card">
             <div className="flex justify-between items-start">
@@ -41,7 +51,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onStartOrResume, onEdit, o
                         {status.text}
                     </span>
                     <span className="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full text-gray-200 bg-gray-600">
-                        {details.matchType}
+                        {matchTypeDisplay}
                     </span>
                 </div>
                 {matchDate && (
@@ -52,12 +62,12 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onStartOrResume, onEdit, o
                 )}
             </div>
 
-            <div className="flex items-center justify-between my-2">
-                <span className="font-semibold text-lg truncate w-2/5 text-right">{homeTeamName}</span>
-                <span className="font-bold text-2xl mx-2">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 my-2">
+                <span className="font-semibold text-lg truncate text-right">{homeTeamName}</span>
+                <span className="font-bold text-2xl mx-2 bg-gray-900/50 px-3 py-1 rounded-md">
                     {homeTeamScore} - {awayTeamScore}
                 </span>
-                <span className="font-semibold text-lg truncate w-2/5 text-left">{awayTeamName}</span>
+                <span className="font-semibold text-lg truncate text-left">{awayTeamName}</span>
             </div>
 
             <div className="flex justify-end items-center gap-2 border-t border-gray-700 pt-3 mt-auto">
@@ -81,7 +91,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onStartOrResume, onEdit, o
                     onClick={() => matchState === MatchState.FULL_TIME ? onStartOrResume(match.id) : onEdit(match.id)}
                     className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-1 px-3 rounded text-sm"
                 >
-                    {matchState === MatchState.FULL_TIME ? 'Editar Eventos' : 'Configurar'}
+                    {matchState === MatchState.FULL_TIME ? 'Ver Eventos' : 'Configurar'}
                 </button>
                  <button
                     onClick={() => onDelete(match.id)}

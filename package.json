@@ -1,5 +1,5 @@
 {
-  "name": "control-estadístico-de-fútbol-15-06",
+  "name": "control-estadístico-de-fútbol-15-1502",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,10 +11,12 @@
   "dependencies": {
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "@google/genai": "latest"
+    "@google/genai": "latest",
+    "idb": "^8.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

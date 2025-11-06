@@ -1,9 +1,20 @@
 // --- SETUP PHASE TYPES ---
 
+// Fix: Moved UNAVAILABILITY_REASONS and UnavailabilityReason up to be used in RosterPlayer and UnavailableSetup.
+export const UNAVAILABILITY_REASONS = ['Lesión', 'Estudios', 'Viaje', 'Asuntos Personales', 'Otro'] as const;
+export type UnavailabilityReason = typeof UNAVAILABILITY_REASONS[number];
+
 export interface RosterPlayer {
   id: number;
   name: string;
   number: number;
+  dateOfBirth?: string; // Storing as YYYY-MM-DD
+  photoId?: string; // ID for IndexedDB player photo
+  availability?: {
+    status: 'Disponible' | 'No Disponible';
+    // Fix: Used UnavailabilityReason for consistency.
+    reason: UnavailabilityReason;
+  }
 }
 
 export interface StarterSetup {
@@ -25,12 +36,11 @@ export interface UnavailableSetup {
   id: number;
   playerName: string;
   playerNumber: number;
-  reason: string;
+  // Fix: Changed reason from string to the specific UnavailabilityReason type.
+  reason: UnavailabilityReason;
 }
 
-export const UNAVAILABILITY_REASONS = ['Lesión', 'Estudios', 'Viaje', 'Asuntos Personales', 'Otro'] as const;
-export type UnavailabilityReason = typeof UNAVAILABILITY_REASONS[number];
-
+// Fix: Added missing TeamSetup interface definition.
 export interface TeamSetup {
   formation: string;
   starters: StarterSetup[];
@@ -38,8 +48,12 @@ export interface TeamSetup {
   unavailable: UnavailableSetup[];
 }
 
+
 export const MATCH_TYPES = ['Liga', 'Amistoso', 'Torneo'] as const;
 export type MatchType = typeof MATCH_TYPES[number];
+
+export const TOURNAMENT_STAGES = ['Fase de Grupos', 'Octavos de Final', 'Cuartos de Final', 'Semifinal', 'Final'] as const;
+export type TournamentStage = typeof TOURNAMENT_STAGES[number];
 
 export interface MatchDetails {
   opponentName: string;
@@ -48,6 +62,10 @@ export interface MatchDetails {
   matchTime: string;
   refereeName: string;
   matchType: MatchType;
+  jornada?: number;
+  tournamentStage?: TournamentStage;
+  myTeamLogo?: string;
+  opponentLogo?: string;
 }
 
 
@@ -62,6 +80,7 @@ export enum MatchState {
 }
 
 export interface StatEvent {
+  id: string;
   minute: number;
 }
 
@@ -83,12 +102,12 @@ export interface GoalEvent extends StatEvent {
 
 export type PlayerStatKeys = 
   | 'goals'
+  | 'goalChances'
   | 'goalsConceded'
   | 'saves'
   | 'penaltiesCommitted'
   | 'penaltiesSaved'
   | 'penaltiesMissed'
-  | 'foulsCommitted'
   | 'offsidesCommitted';
 
 
@@ -96,6 +115,7 @@ export interface Player {
   id: number;
   name: string;
   number: number;
+  photoId?: string; // ID for IndexedDB player photo
   positionName: string;
   positionAbbr: string;
   yellowCards: StatEvent[];
@@ -104,10 +124,11 @@ export interface Player {
   isOnField: boolean;
   isGoalkeeper: boolean;
   position: { x: number; y: number };
+  unavailabilityReason?: UnavailabilityReason;
   
   // Detailed Stats
   goals: GoalEvent[];
-  foulsCommitted: StatEvent[];
+  goalChances: StatEvent[];
   penaltiesCommitted: StatEvent[];
   penaltiesMissed: StatEvent[];
   offsidesCommitted: StatEvent[];
@@ -124,8 +145,10 @@ export interface Team {
   logo?: string;
   starters: Player[];
   subs: Player[];
+  unavailable: Player[];
   formation: string;
   cornersFor: StatEvent[];
+  foulsCommitted: StatEvent[];
   substitutionWindows: number;
 }
 
@@ -142,15 +165,17 @@ export interface PlayerInfo {
 }
 
 export interface SubstitutionEvent {
+  id: string;
   teamId: TeamId;
   minute: number;
   playerOut: PlayerInfo;
   playerIn: PlayerInfo;
 }
 
-export type MatchEventType = 'GOAL' | 'YELLOW_CARD' | 'RED_CARD' | 'SUBSTITUTION';
+export type MatchEventType = 'GOAL' | 'YELLOW_CARD' | 'RED_CARD' | 'SUBSTITUTION' | 'GOAL_CHANCE' | 'CORNER' | 'FOUL' | 'OFFSIDE';
 
 export interface MatchEvent {
+    id: string;
     minute: number;
     teamId: TeamId;
     teamName: string;
@@ -158,6 +183,7 @@ export interface MatchEvent {
     detail: string;
     playerOut?: PlayerInfo;
     playerIn?: PlayerInfo;
+    playerId?: number | null;
 }
 
 // --- TRAINING MANAGEMENT TYPES ---
@@ -192,14 +218,36 @@ export interface TrainingSession {
   photoDataUrl?: string;
 }
 
+// --- OPPONENT TEAM MANAGEMENT TYPES ---
+export interface OpponentPlayer {
+  id: number;
+  name: string;
+  number: number;
+}
+
+export interface OpponentStaff {
+  firstCoach: string;
+  secondCoach: string;
+  delegate: string;
+  physio: string;
+}
+
+export interface OpponentTeam {
+  id: number;
+  name: string;
+  crest?: string;
+  players: OpponentPlayer[];
+  staff: OpponentStaff;
+}
 
 // --- NEW TOP-LEVEL TYPES ---
 
 export interface MediaItem {
   id: string; // unique id, e.g., timestamp
   type: string; // mime type
-  dataUrl: string; // base64 data url
+  dataUrl: string; // base64 data url for youtube, otherwise placeholder
   name: string;
+  storage?: 'indexeddb'; // To denote that the blob is in the DB
 }
 
 export interface Match {
@@ -208,6 +256,7 @@ export interface Match {
   details: MatchDetails;
   myTeamSetup: TeamSetup;
   opponentTeamSetup: TeamSetup;
+  opponentTeamId?: number; // Link to saved opponent team
   
   // Live Data (initialized when match starts)
   teamA: Team | null;
@@ -219,4 +268,26 @@ export interface Match {
   initialStartersA: Player[]; // Snapshot for stats
   initialStartersB: Player[]; // Snapshot for stats
   media: MediaItem[];
+}
+
+export interface TeamSettings {
+  primaryColor: string;
+  secondaryColor: string;
+}
+
+// Stats Dashboard Types
+export interface AggregatedPlayerStats {
+  gamesPlayed: number;
+  started: number;
+  subbedIn: number;
+  minutesPlayed: number;
+  bench: number;
+  unavailable: number;
+  notCalledUp: number;
+  goals: number;
+  yellowCards: number;
+  redCards: number;
+  // GK stats
+  goalsConceded: number;
+  saves: number;
 }

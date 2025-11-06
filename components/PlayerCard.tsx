@@ -1,11 +1,13 @@
-import React, { useState, memo } from 'react';
+import React, { useState, memo, useEffect } from 'react';
 import type { Player, TeamId, PlayerStatKeys, StatEvent, GoalEvent } from '../types';
-import { CardIcon, ChevronDownIcon, ClockIcon } from './icons';
+import { CardIcon, ChevronDownIcon, ClockIcon, PhotoPlaceholderIcon } from './icons';
 import { GOAL_TYPES } from '../types';
+import { getMedia } from './db';
 
 interface PlayerCardProps {
   player: Player;
   teamId: TeamId;
+  isMyTeam: boolean;
   isRosterEditable: boolean;
   isMatchActionEnabled: boolean;
   onUpdatePlayer: (teamId: TeamId, playerId: number, field: 'name' | 'number', value: string) => void;
@@ -14,6 +16,51 @@ interface PlayerCardProps {
   onUpdatePlayerStat: (teamId: TeamId, playerId: number, stat: PlayerStatKeys, action: 'add' | 'remove') => void;
   onAddGoal: (teamId: TeamId, playerId: number) => void;
 }
+
+const PlayerPhoto: React.FC<{ photoId?: string; alt: string }> = memo(({ photoId, alt }) => {
+    const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        let objectUrl: string | null = null;
+    
+        const loadUrl = async () => {
+            if (photoId) {
+                try {
+                    const blob = await getMedia(photoId);
+                    if (blob) {
+                        objectUrl = URL.createObjectURL(blob);
+                        setImageUrl(objectUrl);
+                    } else {
+                        setImageUrl(null);
+                    }
+                } catch (error) {
+                    console.error(`Failed to load media for id ${photoId}`, error);
+                    setImageUrl(null);
+                }
+            } else {
+                setImageUrl(null);
+            }
+        };
+    
+        loadUrl();
+    
+        return () => {
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl);
+            }
+        };
+    }, [photoId]);
+
+    if (imageUrl) {
+        return <img src={imageUrl} alt={alt} className="w-full h-full object-cover" />;
+    }
+    return (
+        <div className="w-full h-full flex items-center justify-center text-gray-400">
+            <PhotoPlaceholderIcon className="w-6 h-6" />
+        </div>
+    );
+});
+
 
 const StatInputGroup: React.FC<{ label: string; statKey: PlayerStatKeys; value: StatEvent[] | GoalEvent[], teamId: TeamId, player: Player, isMatchActionEnabled: boolean, onUpdatePlayerStat: PlayerCardProps['onUpdatePlayerStat'], onAddGoal?: PlayerCardProps['onAddGoal'] }> = memo(({ label, statKey, value, teamId, player, isMatchActionEnabled, onUpdatePlayerStat, onAddGoal }) => {
     const [minutesVisible, setMinutesVisible] = useState(false);
@@ -78,7 +125,7 @@ const StatInputGroup: React.FC<{ label: string; statKey: PlayerStatKeys; value: 
 });
 
 
-const PlayerCard: React.FC<PlayerCardProps> = ({ player, teamId, isRosterEditable, isMatchActionEnabled, onUpdatePlayer, onGiveCard, onRemoveCard, onUpdatePlayerStat, onAddGoal }) => {
+const PlayerCard: React.FC<PlayerCardProps> = ({ player, teamId, isMyTeam, isRosterEditable, isMatchActionEnabled, onUpdatePlayer, onGiveCard, onRemoveCard, onUpdatePlayerStat, onAddGoal }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   
   const commonStatProps = {
@@ -95,6 +142,11 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, teamId, isRosterEditabl
     <div className={`transition-all duration-300 rounded-md ${player.isSentOff ? 'bg-red-900/50' : 'bg-gray-700'}`}>
       <div className="flex items-center justify-between p-2">
         <div className="flex items-center gap-3 flex-grow">
+          {isMyTeam && (
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-600 overflow-hidden border-2 border-gray-500">
+                <PlayerPhoto photoId={player.photoId} alt={player.name} />
+            </div>
+          )}
           <input
             type="number"
             value={player.number}
@@ -169,31 +221,32 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, teamId, isRosterEditabl
           </button>
         </div>
       </div>
-      {isExpanded && (
-        <div className="px-3 pb-3 border-t border-gray-600/50">
-          <h4 className="font-semibold text-sm mt-2 mb-1 text-cyan-400">Estadísticas Individuales</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
-            {player.isGoalkeeper ? (
-              <>
-                <StatInputGroup key="goals" label="Goles" statKey="goals" value={player.goals} {...commonStatProps} />
-                <StatInputGroup key="goalsConceded" label="Goles Encajados" statKey="goalsConceded" value={player.goalsConceded} {...commonStatProps} />
-                <StatInputGroup key="saves" label="Paradas" statKey="saves" value={player.saves} {...commonStatProps} />
-                <StatInputGroup key="penaltiesSaved" label="Penaltis Parados" statKey="penaltiesSaved" value={player.penaltiesSaved} {...commonStatProps} />
-                <StatInputGroup key="foulsCommitted" label="Faltas Cometidas" statKey="foulsCommitted" value={player.foulsCommitted} {...commonStatProps} />
-                <StatInputGroup key="penaltiesCommitted" label="Penaltis Cometidos" statKey="penaltiesCommitted" value={player.penaltiesCommitted} {...commonStatProps} />
-              </>
-            ) : (
-              <>
-                <StatInputGroup key="goals" label="Goles" statKey="goals" value={player.goals} {...commonStatProps} />
-                <StatInputGroup key="penaltiesMissed" label="Penaltis Fallados" statKey="penaltiesMissed" value={player.penaltiesMissed} {...commonStatProps} />
-                <StatInputGroup key="foulsCommitted" label="Faltas Cometidas" statKey="foulsCommitted" value={player.foulsCommitted} {...commonStatProps} />
-                <StatInputGroup key="penaltiesCommitted" label="Penaltis Cometidos" statKey="penaltiesCommitted" value={player.penaltiesCommitted} {...commonStatProps} />
-                <StatInputGroup key="offsidesCommitted" label="Fueras de Juego" statKey="offsidesCommitted" value={player.offsidesCommitted} {...commonStatProps} />
-              </>
-            )}
+      <div className={`collapsible-container ${isExpanded ? 'expanded' : ''}`}>
+        <div className="collapsible-content">
+          <div className="px-3 pt-3 pb-3 border-t border-gray-600/50">
+            <h4 className="font-semibold text-sm mb-1 text-cyan-400">Estadísticas Individuales</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+              {player.isGoalkeeper ? (
+                <>
+                  <StatInputGroup key="goals" label="Goles" statKey="goals" value={player.goals} {...commonStatProps} />
+                  <StatInputGroup key="goalsConceded" label="Goles Encajados" statKey="goalsConceded" value={player.goalsConceded} {...commonStatProps} />
+                  <StatInputGroup key="saves" label="Paradas" statKey="saves" value={player.saves} {...commonStatProps} />
+                  <StatInputGroup key="penaltiesSaved" label="Penaltis Parados" statKey="penaltiesSaved" value={player.penaltiesSaved} {...commonStatProps} />
+                  <StatInputGroup key="penaltiesCommitted" label="Penaltis Cometidos" statKey="penaltiesCommitted" value={player.penaltiesCommitted} {...commonStatProps} />
+                </>
+              ) : (
+                <>
+                  <StatInputGroup key="goals" label="Goles" statKey="goals" value={player.goals} {...commonStatProps} />
+                  <StatInputGroup key="goalChances" label="Ocasiones de Gol" statKey="goalChances" value={player.goalChances} {...commonStatProps} />
+                  <StatInputGroup key="penaltiesMissed" label="Penaltis Fallados" statKey="penaltiesMissed" value={player.penaltiesMissed} {...commonStatProps} />
+                  <StatInputGroup key="penaltiesCommitted" label="Penaltis Cometidos" statKey="penaltiesCommitted" value={player.penaltiesCommitted} {...commonStatProps} />
+                  <StatInputGroup key="offsidesCommitted" label="Fueras de Juego" statKey="offsidesCommitted" value={player.offsidesCommitted} {...commonStatProps} />
+                </>
+              )}
+            </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

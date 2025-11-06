@@ -6,9 +6,11 @@ declare const Chart: any;
 interface StatsChartProps {
   teamAStats: any;
   teamBStats: any;
+  myTeamName: string;
+  primaryColor: string;
 }
 
-const StatsChart: React.FC<StatsChartProps> = ({ teamAStats, teamBStats }) => {
+const StatsChart: React.FC<StatsChartProps> = ({ teamAStats, teamBStats, myTeamName, primaryColor }) => {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<any>(null);
 
@@ -20,6 +22,10 @@ const StatsChart: React.FC<StatsChartProps> = ({ teamAStats, teamBStats }) => {
         if (chartInstance.current) {
           chartInstance.current.destroy();
         }
+
+        const isTeamAMyTeam = teamAStats.name === myTeamName;
+        const myTeamColor = primaryColor;
+        const opponentColor = 'rgba(156, 163, 175, 0.7)'; // gray-400
 
         const labels = ['Goles', 'Córners', 'Faltas Cometidas', 'Fueras de Juego', 'Tarjetas Amarillas', 'Tarjetas Rojas'];
         const data = {
@@ -35,8 +41,8 @@ const StatsChart: React.FC<StatsChartProps> = ({ teamAStats, teamBStats }) => {
                 teamAStats.yellowCards,
                 teamAStats.redCards,
               ],
-              backgroundColor: 'rgba(59, 130, 246, 0.7)',
-              borderColor: 'rgba(59, 130, 246, 1)',
+              backgroundColor: isTeamAMyTeam ? myTeamColor : opponentColor,
+              borderColor: isTeamAMyTeam ? myTeamColor : opponentColor,
               borderWidth: 1,
             },
             {
@@ -49,8 +55,8 @@ const StatsChart: React.FC<StatsChartProps> = ({ teamAStats, teamBStats }) => {
                 teamBStats.yellowCards,
                 teamBStats.redCards,
               ],
-              backgroundColor: 'rgba(236, 72, 153, 0.7)',
-              borderColor: 'rgba(236, 72, 153, 1)',
+              backgroundColor: !isTeamAMyTeam ? myTeamColor : opponentColor,
+              borderColor: !isTeamAMyTeam ? myTeamColor : opponentColor,
               borderWidth: 1,
             },
           ],
@@ -113,7 +119,7 @@ const StatsChart: React.FC<StatsChartProps> = ({ teamAStats, teamBStats }) => {
         chartInstance.current.destroy();
       }
     };
-  }, [teamAStats, teamBStats]);
+  }, [teamAStats, teamBStats, myTeamName, primaryColor]);
 
   return <canvas ref={chartRef}></canvas>;
 };

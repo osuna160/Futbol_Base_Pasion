@@ -1,4 +1,3 @@
-
 import React, { useRef, useCallback } from 'react';
 
 interface BallTokenProps {
@@ -15,19 +14,19 @@ const BallToken: React.FC<BallTokenProps> = ({ position, onMove }) => {
     e.stopPropagation();
     isDragging.current = true;
 
-    const getEventCoords = (e: MouseEvent | TouchEvent) => {
-      return 'touches' in e ? e.touches[0] : e;
-    };
-
     const handleDragMove = (moveEvent: MouseEvent | TouchEvent) => {
       if (!isDragging.current || !tokenRef.current) return;
 
       moveEvent.preventDefault();
 
-      const parentRect = tokenRef.current.parentElement?.parentElement?.getBoundingClientRect();
+      const parentRect = tokenRef.current.parentElement?.getBoundingClientRect();
       if (!parentRect) return;
 
-      const { clientX, clientY } = getEventCoords(moveEvent);
+      const touch = 'touches' in moveEvent ? moveEvent.touches[0] : null;
+      const clientX = touch ? touch.clientX : (moveEvent as MouseEvent).clientX;
+      const clientY = touch ? touch.clientY : (moveEvent as MouseEvent).clientY;
+
+      if (clientX === undefined || clientY === undefined) return;
 
       let x = clientX - parentRect.left;
       let y = clientY - parentRect.top;
@@ -55,7 +54,7 @@ const BallToken: React.FC<BallTokenProps> = ({ position, onMove }) => {
   return (
     <div
       ref={tokenRef}
-      className="absolute transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 cursor-grab active:cursor-grabbing pointer-events-auto"
+      className="absolute w-7 h-7 cursor-grab active:cursor-grabbing pointer-events-auto ball-token-glow"
       style={{
         left: `${position.x}%`,
         top: `${position.y}%`,
@@ -65,9 +64,15 @@ const BallToken: React.FC<BallTokenProps> = ({ position, onMove }) => {
       onTouchStart={handleDragStart}
       title="Balón"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="w-full h-full drop-shadow-lg">
-        <path fill="#000000" d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512z" />
-        <path fill="#FFFFFF" d="M164.6 135.4l56.8 56.8c4.2-1.8 8.8-2.9 13.5-3.4l-57.8-57.8c-5.8-5.8-15.3-5.8-21.1 0l-1.4 1.4c-5.8 5.8-5.8 15.3 0 21.1zm21.1 88.5l-56.8-56.8c1.8-4.2 2.9-8.8 3.4-13.5l57.8 57.8c5.8 5.8 5.8 15.3 0 21.1l-1.4 1.4c-5.8 5.8-15.3 5.8-21.1 0zM224 336l-57.8 57.8c5.8 5.8 15.3 5.8 21.1 0l1.4-1.4c5.8-5.8 5.8-15.3 0-21.1l-56.8-56.8c-4.2 1.8-8.8 2.9-13.5 3.4l57.8 57.8c4.6 4.6 11.2 6.4 17.5 5.7zM240 256c-4.4 0-8.8.5-13.1 1.4l-102-102c-5.8-5.8-15.3-5.8-21.1 0l-1.4 1.4c-5.8 5.8-5.8 15.3 0 21.1l102 102c-1 4.3-1.4 8.7-1.4 13.1c0 4.4.5 8.8 1.4 13.1l-102 102c-5.8 5.8-5.8 15.3 0 21.1l1.4 1.4c5.8 5.8 15.3 5.8 21.1 0l102-102c4.3 1 8.7 1.4 13.1 1.4c4.4 0 8.8-.5 13.1-1.4l102 102c5.8 5.8 15.3 5.8 21.1 0l1.4-1.4c5.8-5.8 5.8-15.3 0-21.1l-102-102c1-4.3 1.4-8.7 1.4-13.1c0-4.4-.5-8.8-1.4-13.1l102-102c5.8-5.8 5.8-15.3 0-21.1l-1.4-1.4c-5.8-5.8-15.3-5.8-21.1 0l-102 102c-4.3-1-8.7-1.4-13.1-1.4zM405.4 164.6l-56.8-56.8c-5.8-5.8-15.3-5.8-21.1 0l-1.4 1.4c-5.8 5.8-5.8 15.3 0 21.1l56.8 56.8c4.2-1.8 8.8-2.9 13.5-3.4l-57.8-57.8c5.8 5.8 15.3 5.8 21.1 0l1.4-1.4c5.8-5.9 5.8-15.4 0-21.2zM288 336l57.8 57.8c-5.8 5.8-15.3 5.8-21.1 0l-1.4-1.4c-5.8-5.8-5.8-15.3 0-21.1l56.8-56.8c4.2 1.8 8.8 2.9 13.5 3.4l-57.8 57.8c-4.6 4.6-11.2 6.4-17.5 5.7zm31.4-96.6l56.8 56.8c-1.8 4.2-2.9 8.8-3.4 13.5l-57.8-57.8c-5.8-5.8-5.8-15.3 0-21.1l1.4-1.4c5.8-5.8 15.3-5.8 21.1 0z" />
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" className="w-full h-full">
+        <circle cx="25" cy="25" r="24.5" fill="#fff" stroke="#000" strokeWidth="0.5"/>
+        <polygon fill="#000" points="25,4.2 29.3,12.1 20.7,12.1"/>
+        <polygon fill="#000" points="13.2,14.6 18.2,16.4 15.2,21.8"/>
+        <polygon fill="#000" points="36.8,14.6 34.8,21.8 31.8,16.4"/>
+        <polygon fill="#000" points="13.2,35.4 15.2,28.2 18.2,33.6"/>
+        <polygon fill="#000" points="36.8,35.4 31.8,33.6 34.8,28.2"/>
+        <polygon fill="#000" points="25,45.8 20.7,37.9 29.3,37.9"/>
+        <path fill="none" stroke="#000" strokeWidth="0.7" d="M25,4.2 36.8,14.6 31.8,33.6 18.2,33.6 13.2,14.6 25,4.2z M20.7,12.1 13.2,14.6 15.2,21.8 25,25 20.7,12.1z M29.3,12.1 25,25 34.8,21.8 36.8,14.6 29.3,12.1z M20.7,37.9 18.2,33.6 15.2,28.2 25,25 20.7,37.9z M29.3,37.9 25,25 34.8,28.2 31.8,33.6 29.3,37.9z M13.2,35.4 18.2,33.6 M36.8,35.4 31.8,33.6 M25,45.8 29.3,37.9 M25,45.8 20.7,37.9"/>
       </svg>
     </div>
   );
